@@ -230,6 +230,7 @@ enum UserSelectablePins {
   GPIO_TM1640CLK, GPIO_TM1640DIN,       // TM1640 (16 x seven-segment LED controler)
   GPIO_TWAI_TX, GPIO_TWAI_RX, GPIO_TWAI_BO, GPIO_TWAI_CLK,  // ESP32 TWAI serial interface
   GPIO_C8_CO2_5K_TX, GPIO_C8_CO2_5K_RX, // C8-CO2-5K CO2 Sensor
+  GPIO_DCFAN,                           // Custom DC Fan control
   GPIO_SENSOR_END };
 
 // Error as warning to rethink GPIO usage with max 2045
@@ -506,7 +507,8 @@ const char kSensorNames[] PROGMEM =
   D_SENSOR_I2C_SER_TX "|" D_SENSOR_I2C_SER_RX "|"
   D_SENSOR_TM1640_CLK "|" D_SENSOR_TM1640_DIN "|"
   D_SENSOR_TWAI_TX "|" D_SENSOR_TWAI_RX "|" D_SENSOR_TWAI_BO "|" D_SENSOR_TWAI_CLK "|"
-  D_SENSOR_C8_CO2_5K_TX "|" D_SENSOR_C8_CO2_5K_RX
+  D_SENSOR_C8_CO2_5K_TX "|" D_SENSOR_C8_CO2_5K_RX "|"
+  "DCFan"
   ;
 
 const char kSensorNamesFixed[] PROGMEM =
@@ -600,6 +602,9 @@ const uint16_t kGpioNiceList[] PROGMEM = {
 #ifdef USE_BS814A2
   AGPIO(GPIO_BS814_CLK),                         // Holtek BS814A2 touch ctrlr
   AGPIO(GPIO_BS814_DAT),
+#endif
+#ifdef USE_DCFAN
+  AGPIO(GPIO_DCFAN),                              // Custom DC Fan
 #endif
 
 /*-------------------------------------------------------------------------------------------*\
