@@ -9,8 +9,8 @@
 struct dcfan {
   bool active = true;
   bool on = false;
-  uint8_t speed = 1;
-  uint8_t hori = 0;
+  uint8_t speed = 12;
+  uint8_t hori = 3;
   uint8_t vert = 0;
 } dcfan;
 
@@ -27,15 +27,15 @@ void dcfan_init(void) {
 
 void write_bit(uint8_t v) {
     if (v & 1) {
-        digitalWrite(GPIO_DCFAN, LOW);
-        delayMicroseconds(1120);    
-    } else {
-        digitalWrite(GPIO_DCFAN, HIGH); 
+        DigitalWrite(GPIO_DCFAN, 0, HIGH); 
         delayMicroseconds(480);
-        digitalWrite(GPIO_DCFAN, LOW);
-        delayMicroseconds(640);
+        DigitalWrite(GPIO_DCFAN, 0, LOW);
+        delayMicroseconds(640);        
+    } else {
+        DigitalWrite(GPIO_DCFAN, 0, LOW);
+        delayMicroseconds(1120);    
     }
-    digitalWrite(GPIO_DCFAN, HIGH);
+    DigitalWrite(GPIO_DCFAN, 0, HIGH);
     delayMicroseconds(880);
 }
 
@@ -43,28 +43,31 @@ void write_bit(uint8_t v) {
 void dcfan_every_250ms(void) {
     pinMode(Pin(GPIO_DCFAN), OUTPUT);
 
-    //t_noInterrupts();
+    noInterrupts();
     // bit bang output signal
     write_bit(0);
     write_bit(0);
     write_bit(0);
     write_bit(0);
 
-    write_bit(dcfan.hori & 2 >> 1);
-    write_bit(dcfan.hori & 1);
+    write_bit(dcfan.hori >> 1);
+    write_bit(dcfan.hori);
     
-    write_bit(dcfan.vert & 2 >> 1);
-    write_bit(dcfan.vert & 1);
+    write_bit(dcfan.vert >> 1);
+    write_bit(dcfan.vert);
 
-    write_bit(0);
     write_bit(dcfan.on);
 
-    write_bit(dcfan.speed & 8 >> 3);
-    write_bit(dcfan.speed & 4 >> 2);
-    write_bit(dcfan.speed & 2 >> 1);
-    write_bit(dcfan.speed & 1);
+    write_bit(0);
+    write_bit(0);
+    write_bit(0);
 
-    //t_interrupts();
+    write_bit(dcfan.speed >> 3);
+    write_bit(dcfan.speed >> 2);
+    write_bit(dcfan.speed >> 1);
+    write_bit(dcfan.speed);
+
+    interrupts();
     pinMode(Pin(GPIO_DCFAN), INPUT);
 }
 
@@ -76,6 +79,7 @@ dcfan_cmnd_setfanspeed(void) {
         dcfan.speed = XdrvMailbox.payload;
     } 
     ResponseCmndDone();
+    dcfan_publish_settings();
 }
 
 static void
@@ -84,6 +88,7 @@ dcfan_cmnd_setpower(void) {
         return;
     dcfan.on = (XdrvMailbox.payload != 0);
     ResponseCmndDone();
+    dcfan_publish_settings();
 }
 
 static void
@@ -94,6 +99,7 @@ dcfan_cmnd_setswingh(void) {
         dcfan.hori = XdrvMailbox.payload / 30;
     } 
     ResponseCmndDone();
+    dcfan_publish_settings();
 }
 
 static void
@@ -104,11 +110,12 @@ dcfan_cmnd_setswingv(void) {
         dcfan.vert = XdrvMailbox.payload / 30;
     } 
     ResponseCmndDone();
+    dcfan_publish_settings();
 }
 
 static void
 dcfan_publish_settings(void) {
-    Response_P(PSTR("{\"" D_JSON_IRHVAC_POWER "\": %d"), dcfan.on);
+    Response_P(PSTR("{\"" D_JSON_IRHVAC_POWER "\": \"%s\""), dcfan.on ? "ON" : "OFF");
     ResponseAppend_P(PSTR(",\"" D_JSON_IRHVAC_FANSPEED "\": %d"), dcfan.speed);
     ResponseAppend_P(PSTR(",\"" D_JSON_IRHVAC_SWINGH "\": %d"), dcfan.hori * 30);
     ResponseAppend_P(PSTR(",\"" D_JSON_IRHVAC_SWINGV "\": %d"), dcfan.vert * 30);
@@ -116,6 +123,7 @@ dcfan_publish_settings(void) {
 
     MqttPublishPrefixTopicRulesProcess_P(TELE, PSTR("DCFan"));
 }
+
 
 /*********************************************************************************************\
  * Commands
@@ -158,6 +166,10 @@ bool Xdrv100(uint32_t function) {
             break;
         case FUNC_AFTER_TELEPERIOD:
             dcfan_publish_settings();
+            break;
+        case FUNC_SET_POWER:
+            dcfan.on = (XdrvMailbox.index != 0);
+            AddLog(LOG_LEVEL_INFO, PSTR("FUNC_SET_DEVICE:%d, %d"),XdrvMailbox.payload, XdrvMailbox.index);
             break;
         }
     }
